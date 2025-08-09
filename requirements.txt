@@ -1,0 +1,12 @@
+hydra-core
+ninja
+ring-flash-attn
+torch
+tqdm
+transformers
+peft
+liger_kernel
+sglang[all]==0.4.10.post2
+wandb
+flash-attn==2.8.2
+torchdata

@@ -1,0 +1,107 @@
+data:
+  train_data_path: hoanganhpham/r1_tool_dr_v2_converted # train@Chenmien/SearchR1
+  test_data_path: test@Chenmien/SearchR1
+  prompts_per_rollout: 256
+  responses_per_prompt: 8
+
+adv:
+  estimator: reinforce # `reinforce` or `gae`
+  gamma: 1.0
+  lamda: 1.0
+  norm_var: false
+
+actor:
+  model_name: Qwen/Qwen3-4B
+  tokenizer_name: ${actor.model_name}
+  use_liger_kernel: false
+  gradient_checkpointing: true
+  ddp_size: 1
+  tp_size: 1
+  sp_size: 1
+  max_length_per_device: 8192
+  max_inference_length_per_device: ${actor.max_length_per_device}
+  temperature: ${rollout.train_sampling_params.temperature}
+  update_per_rollout: 1
+  clip: 0.2
+  lr: 1e-6
+  weight_decay: 1e-2
+  max_grad_norm: 1.0
+  warmup_ratio: 0.0
+  freeze_steps: 0
+  offload_model: true
+  offload_optimizer: true
+  adv_estimator: ${adv.estimator}
+
+  kl:
+    coef: 0.0
+    type: null # `reward` or `loss`
+    reward_estimator: k1
+    loss_estimator: k2
+    # `k1`, `k2` or `k3`. See http://joschu.net/blog/kl-approx.html.
+
+  entropy:
+    coef: 0.0
+
+rollout:
+  model_name: ${actor.model_name}
+  tokenizer_name: ${rollout.model_name}
+  ddp_size: 1
+  tp_size: 2
+  gpu_memory_utilization: 0.5
+  responses_per_prompt: ${data.responses_per_prompt}
+  apply_chat_template: true
+  train_sampling_params:
+    temperature: 0.6
+    top_p: 0.95
+    top_k: 20
+    min_p: 0.0
+    max_new_tokens: 2048
+  test_sampling_params:
+    temperature: ${rollout.train_sampling_params.temperature}
+    top_p: ${rollout.train_sampling_params.top_p}
+    top_k: ${rollout.train_sampling_params.top_k}
+    min_p: ${rollout.train_sampling_params.min_p}
+    max_new_tokens: ${rollout.train_sampling_params.max_new_tokens}
+  max_turns: 8
+  env_path: envs/searchr1.py
+  dynamic_filtering: true
+  tools_config_path: RL2/workers/tools/config/config_example.yaml
+
+ref_actor:
+  model_name: ${actor.model_name}
+  tokenizer_name: ${ref_actor.model_name}
+  use_liger_kernel: ${actor.use_liger_kernel}
+  ddp_size: ${actor.ddp_size}
+  tp_size: ${actor.tp_size}
+  sp_size: ${actor.sp_size}
+  max_inference_length_per_device: ${actor.max_length_per_device}
+  temperature: ${rollout.train_sampling_params.temperature}
+  offload_model: ${actor.offload_model}
+
+critic:
+  model_name: ${actor.model_name}
+  tokenizer_name: ${critic.model_name}
+  gradient_checkpointing: ${actor.gradient_checkpointing}
+  ddp_size: ${actor.ddp_size}
+  tp_size: ${actor.tp_size}
+  sp_size: ${actor.sp_size}
+  max_length_per_device: ${actor.max_length_per_device}
+  max_inference_length_per_device: ${critic.max_length_per_device}
+  update_per_rollout: 12
+  clip: 0.5
+  lr: 5e-6
+  weight_decay: ${actor.weight_decay}
+  max_grad_norm: ${actor.max_grad_norm}
+  warmup_ratio: ${actor.warmup_ratio}
+  offload_model: ${actor.offload_model}
+  offload_optimizer: ${actor.offload_optimizer}
+  
+trainer:
+  project: SearchR1
+  experiment_name: qwen2.5-3b-inst_reinforce
+  load_ckpt_from_dir: null
+  n_epochs: 1
+  test_freq: 8
+  save_dir: ckpt/${trainer.experiment_name}
+  save_freq: null
+  disable_wandb: false

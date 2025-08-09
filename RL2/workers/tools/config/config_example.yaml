@@ -1,0 +1,57 @@
+tools:
+  # General tool configuration
+  call_limit: 3  # Maximum number of tool calls allowed per sample
+  max_workers: 64  # Maximum number of threads for concurrent tool execution
+  timeout: 120  # Tool execution timeout (seconds)
+  retry_count: 3  # Number of retry attempts for tool execution failures
+  verbose_logging: true  # Enable detailed logging
+  fail_on_error: false  # Throw an exception if tool loading fails
+  
+  # Tool instance definitions
+  tool_instances:
+    web_search:
+      class_path: RL2.workers.tools.web_search_tool.WebSearchTool
+      tool_schema:
+        type: function
+        function:
+          name: web_search
+          description: "Search the web and return short previews of top results"
+          parameters:
+            type: object
+            properties:
+              query:
+                type: string
+                description: "Search query"
+              top_k:
+                type: integer
+                description: "Number of search results to return (default: 3)"
+                minimum: 1
+                maximum: 20
+              use_reranker:
+                type: boolean
+                description: "Whether to use reranking (default: false)"
+            required: ["query"]
+      params:
+        search_url: "http://localhost:10000/search"
+        timeout: 30
+        top_k: 3
+        use_reranker: false
+        preview_chars: 256
+
+    web_visit:
+      class_path: RL2.workers.tools.web_visit_tool.WebVisitTool
+      tool_schema:
+        type: function
+        function:
+          name: web_visit
+          description: "Visit a URL and return full page content"
+          parameters:
+            type: object
+            properties:
+              url:
+                type: string
+                description: "URL to fetch"
+            required: ["url"]
+      params:
+        visit_url: "http://localhost:10000/visit"
+        timeout: 30
