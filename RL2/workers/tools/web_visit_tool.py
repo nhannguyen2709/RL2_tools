@@ -28,6 +28,36 @@ class WebVisitTool(BaseTool):
     def name(self) -> str:
         return "web_visit"
 
+    def _format_response(self, success: bool = True, data: str = "", error: str = "") -> str:
+        """
+        Standardize web tool response format for consistent handling.
+        
+        Args:
+            success: Whether the tool execution was successful
+            data: The successful result data (used when success=True)
+            error: The error message (used when success=False)
+            
+        Returns:
+            JSON string with standardized format:
+            {
+                "success": bool,
+                "tool_name": str,
+                "data": str,        # Only when success=True
+                "error": str        # Only when success=False
+            }
+        """
+        response = {
+            "success": success,
+            "tool_name": self.name
+        }
+        
+        if success:
+            response["data"] = data
+        else:
+            response["error"] = error
+            
+        return json.dumps(response)
+
     def get_openai_tool_schema(self) -> dict:
         return {
             "type": "function",
@@ -49,7 +79,7 @@ class WebVisitTool(BaseTool):
             args = json.loads(function_args) if isinstance(function_args, str) else function_args
             url = (args.get("url") or "").strip()
             if not url:
-                return json.dumps({"error": "Empty URL"})
+                return self._format_response(success=False, error="Empty URL")
 
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -57,15 +87,17 @@ class WebVisitTool(BaseTool):
                     response.raise_for_status()
                     raw = await response.json()
 
-            return json.dumps(raw)
+            # Extract content from the raw response and format consistently
+            content = raw.get("content", "") if isinstance(raw, dict) else str(raw)
+            return self._format_response(success=True, data=content)
 
         except asyncio.TimeoutError:
-            return json.dumps({"error": f"Visit timed out after {self.timeout} seconds"})
+            return self._format_response(success=False, error=f"Visit timed out after {self.timeout} seconds")
         except aiohttp.ClientError as e:
-            return json.dumps({"error": f"Visit API error: {str(e)}"})
+            return self._format_response(success=False, error=f"Visit API error: {str(e)}")
         except Exception as e:
             logger.exception("web_visit failed")
-            return json.dumps({"error": str(e)})
+            return self._format_response(success=False, error=str(e))
 
 
 if __name__ == "__main__":

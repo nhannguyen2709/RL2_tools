@@ -266,13 +266,27 @@ class Agent(Rollout):
                                 for tool_call in parsed_tool_calls
                             ]
                         )
-                        # Format tool responses
+                        # Format tool responses with standardized handling
                         tool_response_prefix_msg = "<tool_response>\n"
                         tool_response_suffix_msg = "\n</tool_response>"
                         tool_calls_content = ""
+                        
                         for i, (tool_call, result) in enumerate(zip(parsed_tool_calls, tool_call_results)):
-                            result = json.loads(result)
-                            tool_calls_content += result["data"]
+                            parsed_result = json.loads(result)
+                            tool_name = parsed_result.get("tool_name", tool_call.function.name)
+                            
+                            if parsed_result.get("success", False):
+                                # Successful tool execution
+                                tool_calls_content += parsed_result.get("data", "")
+                            else:
+                                # Tool execution failed
+                                error_msg = parsed_result.get("error", "Unknown error")
+                                tool_calls_content += f"[{tool_name} Error]: {error_msg}"
+                                
+                            # Add spacing between multiple tool results
+                            if i < len(parsed_tool_calls) - 1:
+                                tool_calls_content += "\n\n"
+                                    
                         tool_calls_content = tool_response_prefix_msg + tool_calls_content + tool_response_suffix_msg
                         messages.append({"role": "user", "content": tool_calls_content})
                     else:

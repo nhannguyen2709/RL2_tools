@@ -31,6 +31,36 @@ class WebSearchTool(BaseTool):
     def name(self) -> str:
         return "web_search"
 
+    def _format_response(self, success: bool = True, data: str = "", error: str = "") -> str:
+        """
+        Standardize web tool response format for consistent handling.
+        
+        Args:
+            success: Whether the tool execution was successful
+            data: The successful result data (used when success=True)
+            error: The error message (used when success=False)
+            
+        Returns:
+            JSON string with standardized format:
+            {
+                "success": bool,
+                "tool_name": str,
+                "data": str,        # Only when success=True
+                "error": str        # Only when success=False
+            }
+        """
+        response = {
+            "success": success,
+            "tool_name": self.name
+        }
+        
+        if success:
+            response["data"] = data
+        else:
+            response["error"] = error
+            
+        return json.dumps(response)
+
     def get_openai_tool_schema(self) -> dict:
         return {
             "type": "function",
@@ -62,7 +92,7 @@ class WebSearchTool(BaseTool):
             args = json.loads(function_args) if isinstance(function_args, str) else function_args
             query = (args.get("query") or "").strip()
             if not query:
-                return json.dumps({"error": "Empty search query"})
+                return self._format_response(success=False, error="Empty search query")
 
             top_k = int(args.get("top_k", self.top_k))
             use_reranker = bool(args.get("use_reranker", self.use_reranker))
@@ -91,15 +121,15 @@ class WebSearchTool(BaseTool):
                 normalized_results.append(f"Index: {idx}\nURL: {url}\nTitle: {title}\nPreview: {preview}")
             normalized_results = "\n\n".join(normalized_results)
 
-            return json.dumps({"data": normalized_results})
+            return self._format_response(success=True, data=normalized_results)
 
         except asyncio.TimeoutError:
-            return json.dumps({"error": f"Search timed out after {self.timeout} seconds"})
+            return self._format_response(success=False, error=f"Search timed out after {self.timeout} seconds")
         except aiohttp.ClientError as e:
-            return json.dumps({"error": f"Search API error: {str(e)}"})
+            return self._format_response(success=False, error=f"Search API error: {str(e)}")
         except Exception as e:
             logger.exception("web_search failed")
-            return json.dumps({"error": str(e)})
+            return self._format_response(success=False, error=str(e))
 
 
 if __name__ == "__main__":
