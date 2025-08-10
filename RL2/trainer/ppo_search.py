@@ -78,7 +78,8 @@ class PPOSearchTrainer(Trainer):
             )
         elif self.config.adv.estimator == "reinforce":
             compute_reinforce_adv(
-                data_list, 
+                data_list,
+                self.config.data.responses_per_prompt, 
                 self.config.adv.norm_var
             )
         else: 
