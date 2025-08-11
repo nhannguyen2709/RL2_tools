@@ -72,17 +72,13 @@ class WebSearchTool(BaseTool):
                 response = self._format_response(success=False, error="Empty search query")
                 return response, 0.0, {"error": "empty_query"}
 
-            top_k = int(parameters.get("top_k", self.top_k))
-            use_reranker = bool(parameters.get("use_reranker", self.use_reranker))
-
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     self.search_url,
                     json={
                         "query": query,
-                        "top_k": top_k,
-                        "use_reranker": use_reranker,
+                        "top_k": self.top_k,
                         "preview_char": self.preview_chars,
                     },
                 ) as http_response:
@@ -104,8 +100,6 @@ class WebSearchTool(BaseTool):
             metrics = {
                 "query": query,
                 "num_results": len(raw.get("results", [])),
-                "top_k": top_k,
-                "use_reranker": use_reranker
             }
             
             return response, reward, metrics

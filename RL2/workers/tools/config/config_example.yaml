@@ -22,19 +22,11 @@ tools:
               query:
                 type: string
                 description: "Search query"
-              top_k:
-                type: integer
-                description: "Number of search results to return (default: 3)"
-                minimum: 1
-                maximum: 20
-              use_reranker:
-                type: boolean
-                description: "Whether to use reranking (default: false)"
             required: ["query"]
       params:
         search_url: "http://localhost:10000/search"
         timeout: 30
-        top_k: 3
+        top_k: 5
         use_reranker: false
         preview_chars: 256
 
