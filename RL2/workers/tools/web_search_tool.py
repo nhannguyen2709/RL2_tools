@@ -2,9 +2,10 @@ import json
 import asyncio
 import aiohttp
 import logging
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Tuple
 
 from RL2.workers.tools.base import BaseTool
+from RL2.workers.tools.schemas import OpenAIFunctionToolSchema
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +17,8 @@ class WebSearchTool(BaseTool):
 
     def __init__(
         self,
-        config: Dict[str, Any] | None = None,
-        tool_schema: Dict[str, Any] | None = None,
+        config: dict,
+        tool_schema: OpenAIFunctionToolSchema,
     ):
         super().__init__(config, tool_schema)
         cfg = config or {}
@@ -27,8 +28,7 @@ class WebSearchTool(BaseTool):
         self.use_reranker = cfg.get("use_reranker", False)
         self.preview_chars = cfg.get("preview_chars", 256)
 
-    @property
-    def name(self) -> str:
+    def _get_default_name(self) -> str:
         return "web_search"
 
     def _format_response(self, success: bool = True, data: str = "", error: str = "") -> str:
@@ -61,41 +61,19 @@ class WebSearchTool(BaseTool):
             
         return json.dumps(response)
 
-    def get_openai_tool_schema(self) -> dict:
-        return {
-            "type": "function",
-            "function": {
-                "name": "web_search",
-                "description": "Search the web and return short previews of top results.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string", "description": "Search query"},
-                        "top_k": {
-                            "type": "integer",
-                            "description": "Number of results to return",
-                            "minimum": 1,
-                            "maximum": 20,
-                        },
-                        "use_reranker": {
-                            "type": "boolean",
-                            "description": "Whether to use reranking",
-                        },
-                    },
-                    "required": ["query"],
-                },
-            },
-        }
+    def get_openai_tool_schema(self) -> OpenAIFunctionToolSchema:
+        return self.tool_schema
 
-    async def execute(self, function_args: Union[str, Dict[str, Any]], **kwargs) -> str:
+    async def execute(self, instance_id: str, parameters: Dict[str, Any], **kwargs) -> Tuple[str, float, Dict[str, Any]]:
+        """Execute the web search tool following VERL interface."""
         try:
-            args = json.loads(function_args) if isinstance(function_args, str) else function_args
-            query = (args.get("query") or "").strip()
+            query = (parameters.get("query") or "").strip()
             if not query:
-                return self._format_response(success=False, error="Empty search query")
+                response = self._format_response(success=False, error="Empty search query")
+                return response, 0.0, {"error": "empty_query"}
 
-            top_k = int(args.get("top_k", self.top_k))
-            use_reranker = bool(args.get("use_reranker", self.use_reranker))
+            top_k = int(parameters.get("top_k", self.top_k))
+            use_reranker = bool(parameters.get("use_reranker", self.use_reranker))
 
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -107,9 +85,9 @@ class WebSearchTool(BaseTool):
                         "use_reranker": use_reranker,
                         "preview_char": self.preview_chars,
                     },
-                ) as response:
-                    response.raise_for_status()
-                    raw = await response.json()
+                ) as http_response:
+                    http_response.raise_for_status()
+                    raw = await http_response.json()
 
             # Normalize to short preview entries only
             normalized_results = []
@@ -121,18 +99,42 @@ class WebSearchTool(BaseTool):
                 normalized_results.append(f"Index: {idx}\nURL: {url}\nTitle: {title}\nPreview: {preview}")
             normalized_results = "\n\n".join(normalized_results)
 
-            return self._format_response(success=True, data=normalized_results)
+            response = self._format_response(success=True, data=normalized_results)
+            reward = 1.0 if normalized_results else 0.0  # Basic reward based on results
+            metrics = {
+                "query": query,
+                "num_results": len(raw.get("results", [])),
+                "top_k": top_k,
+                "use_reranker": use_reranker
+            }
+            
+            return response, reward, metrics
 
         except asyncio.TimeoutError:
-            return self._format_response(success=False, error=f"Search timed out after {self.timeout} seconds")
+            response = self._format_response(success=False, error=f"Search timed out after {self.timeout} seconds")
+            return response, 0.0, {"error": "timeout"}
         except aiohttp.ClientError as e:
-            return self._format_response(success=False, error=f"Search API error: {str(e)}")
+            response = self._format_response(success=False, error=f"Search API error: {str(e)}")
+            return response, 0.0, {"error": "api_error", "details": str(e)}
         except Exception as e:
             logger.exception("web_search failed")
-            return self._format_response(success=False, error=str(e))
+            response = self._format_response(success=False, error=str(e))
+            return response, 0.0, {"error": "unexpected", "details": str(e)}
 
 
 if __name__ == "__main__":
-    tool = WebSearchTool()
-    result = asyncio.run(tool.execute({"query": "Big Little Lies Season 2 number of episodes"}))
-    print(result)
+    from omegaconf import OmegaConf
+
+    tool_config = OmegaConf.load("RL2/workers/tools/config/config_example.yaml").tools.tool_instances.web_search
+    tool_schema_dict = OmegaConf.to_container(tool_config.tool_schema, resolve=True)
+    tool_schema = OpenAIFunctionToolSchema.model_validate(tool_schema_dict)
+    tool = WebSearchTool(tool_config, tool_schema)
+    print(tool.get_openai_tool_schema())
+    
+    async def test():
+        result = await tool.execute("test_instance", {"query": "Big Little Lies Season 2 number of episodes"})
+        print(f"Response: {result[0]}")
+        print(f"Reward: {result[1]}")
+        print(f"Metrics: {result[2]}")
+    
+    asyncio.run(test())
