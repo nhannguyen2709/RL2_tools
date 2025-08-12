@@ -727,12 +727,12 @@ if __name__ == "__main__":
             ],
             "answer": "Saint Michael, Barbados"
         },
-        {
-            "messages": [
-                {"role": "user", "content": "After a stage of the 2005 Tour de France, which had Robbie McEwen as the sprint finish winner and included a breakaway rider who rode solo for 160km, in the general classification:\n\nThe rider who holds the record for the most Tour de France participations, is of the same nationality as the winner of the women's individual time trial at the World Road Racing Championship (which was the first to include the women's individual time trial), and rode for the team that was later rebranded to the team of the 2008 Tour de France winner, is behind another rider by how many seconds?\n\nThis other rider also holds the record for most Tour de France participations, is of the same nationality, won the men's road race at the World Road Racing Championship (which was the first to include the women's team time trial), won the overall classification of the Tour DuPont that was the first to include a route through South Carolina, and was the first American to win that World Championship.\n\nGiven that the points classification was led by a German rider, by how many seconds is the first rider behind the second rider?"}
-            ],
-            "answer": "55 seconds"
-        }
+        # {
+        #     "messages": [
+        #         {"role": "user", "content": "After a stage of the 2005 Tour de France, which had Robbie McEwen as the sprint finish winner and included a breakaway rider who rode solo for 160km, in the general classification:\n\nThe rider who holds the record for the most Tour de France participations, is of the same nationality as the winner of the women's individual time trial at the World Road Racing Championship (which was the first to include the women's individual time trial), and rode for the team that was later rebranded to the team of the 2008 Tour de France winner, is behind another rider by how many seconds?\n\nThis other rider also holds the record for most Tour de France participations, is of the same nationality, won the men's road race at the World Road Racing Championship (which was the first to include the women's team time trial), won the overall classification of the Tour DuPont that was the first to include a route through South Carolina, and was the first American to win that World Championship.\n\nGiven that the points classification was led by a German rider, by how many seconds is the first rider behind the second rider?"}
+        #     ],
+        #     "answer": "55 seconds"
+        # }
     ]
     if rollout.device_mesh["tp"].get_local_rank() == 0:
         data_list = split_and_scatter_list(
@@ -751,6 +751,7 @@ if __name__ == "__main__":
             f"{k}/train": sum([metric[k] for metric in metrics], [])
             for k in metrics[0].keys()
         }
+        import pdb; pdb.set_trace()
         print(f"Device mesh rank: {rollout.device_mesh['dp'].get_local_rank()}")
         print(f"Metrics: {metrics}")
         print("Rollout completed successfully!")

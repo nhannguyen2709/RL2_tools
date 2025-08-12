@@ -1,7 +1,7 @@
 data:
   train_data_path: train@Chenmien/SearchR1 # hoanganhpham/r1_tool_dr_v2_converted
   test_data_path: test@Chenmien/SearchR1
-  prompts_per_rollout: 16 # 256
+  prompts_per_rollout: 256
   responses_per_prompt: 8
 
 adv:
@@ -11,14 +11,14 @@ adv:
   norm_var: false
 
 actor:
-  model_name: Qwen/Qwen3-4B
+  model_name: Qwen/Qwen3-4B # Qwen/Qwen3-4B-Thinking-2507
   tokenizer_name: ${actor.model_name}
   use_liger_kernel: true
   gradient_checkpointing: true
   ddp_size: 1
   tp_size: 1
   sp_size: 2
-  max_length_per_device: 32768
+  max_length_per_device: 8192
   max_inference_length_per_device: ${actor.max_length_per_device}
   temperature: ${rollout.train_sampling_params.temperature}
   update_per_rollout: 1
@@ -102,6 +102,6 @@ trainer:
   load_ckpt_from_dir: null
   n_epochs: 1
   test_freq: 8
-  save_dir: ckpt/${trainer.experiment_name}
+  save_dir: /vast/llm/andy/search-r1/ckpt/${trainer.experiment_name}
   save_freq: null
   disable_wandb: false

@@ -25,7 +25,7 @@ tools:
             required: ["query"]
       params:
         search_url: "http://localhost:10000/search"
-        timeout: 30
+        timeout: 300
         top_k: 5
         use_reranker: false
         preview_chars: 256
@@ -46,4 +46,4 @@ tools:
             required: ["url"]
       params:
         visit_url: "http://localhost:10000/visit"
-        timeout: 30
+        timeout: 300

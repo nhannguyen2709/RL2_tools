@@ -122,11 +122,11 @@ if __name__ == "__main__":
     tool_config = OmegaConf.load("RL2/workers/tools/config/config_example.yaml").tools.tool_instances.web_search
     tool_schema_dict = OmegaConf.to_container(tool_config.tool_schema, resolve=True)
     tool_schema = OpenAIFunctionToolSchema.model_validate(tool_schema_dict)
-    tool = WebSearchTool(tool_config, tool_schema)
+    tool = WebSearchTool(tool_config.params, tool_schema)
     print(tool.get_openai_tool_schema())
     
     async def test():
-        result = await tool.execute("test_instance", {"query": "Big Little Lies Season 2 number of episodes"})
+        result = await tool.execute("test_instance", {"query": "Adam McKay dropped out of college"})
         print(f"Response: {result[0]}")
         print(f"Reward: {result[1]}")
         print(f"Metrics: {result[2]}")
